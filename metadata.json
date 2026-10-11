@@ -1,0 +1,8 @@
+{
+  "name": "PitchPlay Cricket Score Studio",
+  "description": "Cricket score studio with live scoring, team management, player career analytics, and offline-first support.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
