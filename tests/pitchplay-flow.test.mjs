@@ -502,3 +502,69 @@ test('PDF scorecard marks not-out batters with an asterisk and uses theme colour
  assert.ok(html.includes('.scorehero{background:var(--brand);color:white;'));
  assert.equal(html.includes('scorehero" style="--teamcolor:'),false);
 });
+
+test('team is collapsed by default showing team name, and can be expanded or deleted', () => {
+ const app = createHarness();
+ app.click({ action: 'new-team' });
+ app.submit({ id: 'teamForm', fields: { name: 'Royal Strikers', short: 'RSX', color: '#236447', players: 'R1\nR2\nR3' }, reportValidity() { return true; } });
+ let db = app.data();
+ assert.equal(db.teams.length, 1);
+ assert.match(app.nodes['#app'].innerHTML, /team-collapsed/);
+ assert.match(app.nodes['#app'].innerHTML, /Royal Strikers/);
+ // Click to toggle and expand squad
+ app.click({ action: 'toggle-team', id: db.teams[0].id });
+ assert.match(app.nodes['#app'].innerHTML, /team-expanded/);
+ assert.match(app.nodes['#app'].innerHTML, /Captain \(C\)/);
+ // Delete team removes it from storage
+ app.click({ action: 'delete-team', id: db.teams[0].id });
+ db = app.data();
+ assert.equal(db.teams.length, 0);
+});
+
+test('saved match in match history can be deleted', () => {
+ const app = createHarness();
+ seedMatch(app, 'T20', '20');
+ let db = app.data();
+ assert.equal(db.matches.length, 1);
+ const matchId = db.matches[0].id;
+ app.click({ tab: 'matches' });
+ assert.match(app.nodes['#app'].innerHTML, /Match history/);
+ app.click({ action: 'delete-match', id: matchId });
+ db = app.data();
+ assert.equal(db.matches.length, 0);
+});
+
+test('clicking scorecard on completed match in matches history renders scorecard and not home screen', () => {
+ const app = createHarness();
+ seedMatch(app, 'Custom', '2');
+ for (let i = 0; i < 12; i++) { app.click({ run: '0' }); if (i === 5) app.changeBowler(app.data().teams[1].players[1].id); }
+ app.click({ action: 'end-innings' });
+ for (let i = 0; i < 12; i++) { app.click({ run: '0' }); if (i === 5) app.changeBowler(app.data().teams[0].players[1].id); }
+ const db = app.data();
+ assert.equal(db.matches[0].status, 'completed');
+ // Navigate to matches page
+ app.click({ tab: 'matches' });
+ assert.match(app.nodes['#app'].innerHTML, /Match history/);
+ assert.match(app.nodes['#app'].innerHTML, /📊 Scorecard/);
+ // Click open-match on completed match
+ app.click({ action: 'open-match', id: db.matches[0].id });
+ // Verify it renders Match summary / Scorecard and not home page
+ assert.match(app.nodes['#app'].innerHTML, /Match summary & Scorecard|Match summary/);
+ assert.match(app.nodes['#app'].innerHTML, /FINAL RESULT/);
+ assert.doesNotMatch(app.nodes['#app'].innerHTML, /Every run has a story/);
+});
+
+test('end-innings prompts with confirmation and export scorecard modal provides download and print options', () => {
+ const app = createHarness();
+ seedMatch(app, 'T20', '20');
+ app.click({ run: '4' });
+ // Trigger print scorecard
+ app.click({ action: 'print' });
+ assert.match(app.nodes['#modalhost'].innerHTML, /SCORECARD EXPORT &amp; PRINT/);
+ assert.match(app.nodes['#modalhost'].innerHTML, /Download Offline Scorecard/);
+ assert.match(app.nodes['#modalhost'].innerHTML, /Print \/ Save as PDF/);
+ app.click({ action: 'close-modal' });
+ assert.equal(app.nodes['#modalhost'].innerHTML, '');
+});
+
+
